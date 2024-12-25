@@ -13,7 +13,7 @@ const DrawingCanvas: React.FC = () => {
 
   const updateCanvasSize = () => {
     const width = Math.min(800, window.innerWidth - 32) // 32px for padding
-    setCanvasSize({ width, height: width * 0.75 }) // 4:3 aspect ratio
+    setCanvasSize({ width, height: width * 0.6 }) 
   }
 
   useEffect(() => {
