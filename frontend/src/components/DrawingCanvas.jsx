@@ -3,14 +3,14 @@ import toast from 'react-hot-toast';
 import { RotateCcw, Eraser, Pencil } from 'lucide-react'
 import axios from 'axios';
 
-const DrawingCanvas = () => {
+const DrawingCanvas = ({ onPredictionStart, onPredictionComplete }) => {
     const canvasRef = useRef(null)
     const [isDrawing, setIsDrawing] = useState(false)
     const [color, setColor] = useState('#000000')
     const [brushSize, setBrushSize] = useState(27)
     const [tool, setTool] = useState('brush')
     const [canvasSize, setCanvasSize] = useState({ width: 600, height: 600 })
-
+    const [isLoading, setIsLoading] = useState(false);
     const updateCanvasSize = () => {
         const width = Math.min(600, window.innerWidth - 32) // 32px for padding
         setCanvasSize({ width, height: width }) // 4:3 aspect ratio
@@ -64,9 +64,10 @@ const DrawingCanvas = () => {
     const clearCanvas = () => {
         const canvas = canvasRef.current
         const context = canvas?.getContext('2d')
+        toast.success('Canvas cleared!')
         if (context) {
             context.clearRect(0, 0, canvasSize.width, canvasSize.height)
-            toast.success('Canvas cleared!')
+            
         }
     }
 
@@ -92,27 +93,30 @@ const DrawingCanvas = () => {
         }
     }
 
-    const handleCanvasSubmission = () => {
-        const canvas = canvasRef.current
-        // const link = document.createElement("a")
-        // link.download = "canvas-image.jpeg"
-        // link.href = canvas?.toDataURL("image/jpeg", 1.0) || 'None'
-        // link.click()
+    const handleCanvasSubmission = async () => {
+        try {
+            setIsLoading(true);
+            onPredictionStart(); 
+            
+            const canvas = canvasRef.current;
+            const response = await axios.post('http://localhost:8000/api/upload', {
+                image: canvas?.toDataURL("image/jpeg", 1.0)
+            }, {
+                headers: {
+                    'Content-Type': 'application/json'
+                }
+            });
 
-        axios.post('http://localhost:8000/api/upload', {
-            image: canvas?.toDataURL("image/jpeg", 1.0)
-        }, {
-            headers: {
-                'Content-Type': 'application/json'  // Send as JSON
-            }
+            onPredictionComplete(response.data);
+        } catch (error) {
+            console.error('Prediction error:', error);
+            toast.error('Failed to process the image');
+        } finally {
+            setIsLoading(false);
         }
-        ).then(res => {
-            console.log(res.data)
-        }).catch(err => {
-            console.error(err)
-        });
+    };
 
-    }
+    
     return (
         <div className="flex flex-col items-center space-y-4 p-4 bg-gray-100 rounded-lg shadow-md w-full max-w-3xl mx-auto">
             <div className="flex flex-wrap justify-center gap-2 mb-4 w-full">
@@ -140,11 +144,16 @@ const DrawingCanvas = () => {
                     onChange={(e) => setColor(e.target.value)}
                     className="w-10 h-10 rounded cursor-pointer hover:text-white hover:border-black hover:scale-110 transform transition-all duration-200 ease-in-out"
                 />
-                <button className="px-4 py-2 bg-blue-500 text-white rounded hover:bg-blue-600"
-                    onClick={handleCanvasSubmission}
-                >
-                    Click Me
-                </button>
+              
+                <button
+                onClick={handleCanvasSubmission}
+                className={`px-4 py-2 bg-gradient-to-r from-purple-600 to-blue-600 text-white rounded-lg flex items-center space-x-2 ${
+                  isLoading ? 'opacity-50 cursor-not-allowed' : ''
+                }`}
+                disabled={isLoading}
+              >
+                {isLoading ? 'Predicting...' : 'Predict'}
+              </button>
             </div>
             <div className="flex flex-wrap items-center justify-center gap-2 w-full max-w-md">
                 <span className="text-sm font-semibold text-black">Brush Size:</span>
